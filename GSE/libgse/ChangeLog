@@ -1,0 +1,16 @@
+2017-12-14 release 1.2.0
+  do not handle LLC protocols as extension headers
+  fix some codesonar warnings
+  add perf application
+  improve packaging
+  improve build system
+
+2016-09-29 release 1.1.0
+  add encapsulation function with preallocation
+
+2012-06-29 release 1.0.1
+  first public release of GSE library
+  some standard specifications are not implemented
+    - no "3-byte label", "label re-use" and "no label" support
+    - no extension support
+

@@ -1,0 +1,23 @@
+libgse (1.2.0) xenial; urgency=low
+
+  * Release 1.2.0
+
+ -- OpenSAND Maintainers <admin@opensand.org>  Thu, 14 Dec 2017 16:37:00 +0200
+
+libgse (1.1.0) trusty; urgency=low
+
+  * Release 1.1.0
+
+ -- OpenSAND Maintainers <admin@opensand.org>  Thu, 29 Sep 2016 10:43:17 +0200
+
+libgse (1.0.1) lucid; urgency=low
+
+  * Initial Release.
+
+ -- Julien Bernard <jbernard@toulouse.viveris.com>  Tue, 29 May 2012 11:19:33 +0200
+
+libgse (1.0.0) lucid; urgency=low
+
+  * Internal Release.
+
+ -- Julien Bernard <jbernard@toulouse.viveris.com>  Mon, 03 Oct 2011 15:14:54 +0200

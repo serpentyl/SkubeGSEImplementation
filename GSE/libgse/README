@@ -1,0 +1,44 @@
+Introduction
+------------
+
+This piece of software is an implementation of the Generic Stream Encapsulation
+(GSE) standard defined by ETSI for Linux (or other Unix-compatible OS). The
+library may be used to add GSE encapsulation/de-encapsulation capabilities to
+an application.
+
+License
+-------
+
+The GSE library is released under the LGPL version licence either version 3, or
+(at your option) any later version.
+The full text is available in the COPYING.LESSER file.
+Most part of the src/common/crc.h and src/common/crc.c files is under the BSD
+license whose text is given in COPYING.BSD.
+
+Library
+-------
+
+The sources are in the src subdirectory. The sources build an unique library
+that handle both encapsulation and de-encapsulation. See the INSTALL file to
+learn how to build the libraries.
+To compile an application using the GSE library use the following expression:
+gcc `pkg-config libgse --cflags` `pkg-config libgse --libs` -o myappli myappli.c
+
+
+Non-regression tests
+--------------------
+
+The test subdirectory contains a test application. See the header of the test.c
+file for details. See the INSTALL file to learn how to use the non-regression
+tool.
+
+
+References
+----------
+
+ETSI TS 102 606      Digital Video Broadcasting (DVB)
+                     Generic Stream Encapsulation (GSE) Protocol
+
+DVB Document A134    Generic Stream Encapsulation (GSE)
+                     Implementation Guidelines
+
