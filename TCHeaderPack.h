@@ -10,6 +10,7 @@
  * If hmac_out is non-NULL it receives a copy of the 32-byte HMAC.
  */
 uint8_t *build_tc_packet(const char *key, const char *message,
-                         size_t *out_len, uint8_t *hmac_out);
+                         uint16_t counter, size_t *out_len,
+                         uint8_t *hmac_out);
 
 #endif

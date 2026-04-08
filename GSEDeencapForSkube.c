@@ -43,6 +43,9 @@
 /** Debug printing: set to 1 to enable, 0 to disable */
 #define VERBOSE     1
 
+/** HMAC key — must match the key used during encapsulation */
+#define DEFAULT_TC_HMAC_KEY "SkubeTradeshowDemoKey"
+
 #define DEBUG(verbose, format, ...) \
   do { if(verbose) printf(format, ##__VA_ARGS__); } while(0)
 
@@ -70,23 +73,13 @@ int main(void)
     uint8_t       *tc_payload  = NULL;
     size_t         tc_payload_len = 0;
     uint8_t       *tc_hmac     = NULL;
-    const char    *tc_hmac_key_env = NULL;
     int            print_release_msg = 0;
     int            print_close_msg = 0;
 
-    tc_hmac_key_env = getenv("TC_HMAC_KEY");
-    if(tc_hmac_key_env != NULL && tc_hmac_key_env[0] != '\0')
+    if(set_active_hmac_key((const uint8_t *)DEFAULT_TC_HMAC_KEY,
+                           strlen(DEFAULT_TC_HMAC_KEY)) != 0)
     {
-        if(set_active_hmac_key((const uint8_t *)tc_hmac_key_env,
-                               strlen(tc_hmac_key_env)) != 0)
-        {
-            fprintf(stderr, "Failed to initialise active HMAC key\n");
-            goto error;
-        }
-    }
-    else if(reset_active_hmac_key() != 0)
-    {
-        fprintf(stderr, "Failed to reset active HMAC key\n");
+        fprintf(stderr, "Failed to initialise active HMAC key\n");
         goto error;
     }
 

@@ -62,7 +62,7 @@
 /* -------------------------------------------------------------------------
  * Main
  * ------------------------------------------------------------------------- */
-int main(void)
+int main(int argc, char *argv[])
 {
     gse_encap_t  *encap     = NULL;
     gse_vfrag_t  *pdu       = NULL;
@@ -78,17 +78,26 @@ int main(void)
     size_t         in_size   = 0;
     const char    *tc_hmac_key;
     const char    *tc_message;
+    uint16_t       tc_counter = 1;
 
-    /* Allow runtime override from environment for GUI/automation use. */
-    tc_hmac_key = getenv("TC_HMAC_KEY");
-    if(tc_hmac_key == NULL || tc_hmac_key[0] == '\0')
+    if(argc == 4)
+    {
+        tc_message  = argv[1];
+        tc_hmac_key = argv[2];
+        tc_counter  = (uint16_t)atoi(argv[3]);
+    }
+    else if(argc == 1)
+    {
+        tc_message  = DEFAULT_TC_MESSAGE;
         tc_hmac_key = DEFAULT_TC_HMAC_KEY;
+    }
+    else
+    {
+        fprintf(stderr, "Usage: %s [<message> <hmac_key> <counter>]\n", argv[0]);
+        return 1;
+    }
 
-    tc_message = getenv("TC_MESSAGE");
-    if(tc_message == NULL || tc_message[0] == '\0')
-        tc_message = DEFAULT_TC_MESSAGE;
-
-    in_packet = build_tc_packet(tc_hmac_key, tc_message, &in_size, NULL);
+    in_packet = build_tc_packet(tc_hmac_key, tc_message, tc_counter, &in_size, NULL);
     if(in_packet == NULL)
     {
         fprintf(stderr, "Failed to build TC packet\n");

@@ -19,14 +19,13 @@ static uint8_t *append_bytes_internal(uint8_t *buffer, size_t *buffer_len,
 }
 
 uint8_t *build_tc_packet(const char *key, const char *message,
-                         size_t *out_len, uint8_t *hmac_out)
+                         uint16_t counter, size_t *out_len,
+                         uint8_t *hmac_out)
 {
     const char *ack_env;
-    const char *counter_env;
     const char *rotate_env;
     char *end_ptr;
     unsigned long parsed_ack;
-    unsigned long parsed_counter;
     size_t message_len = strlen(message);
     size_t packet_len  = 5 + message_len;
     uint8_t hmac[SHA256_HASH_SIZE];
@@ -38,7 +37,7 @@ uint8_t *build_tc_packet(const char *key, const char *message,
     hdr.ackFlags        = 0;
     hdr.serviceTypeID    = 1;
     hdr.messageSubtypeID = 1;
-    hdr.messageCounter   = 1;
+    hdr.messageCounter   = counter;
 
     if(strstr(message, "Light") != NULL || strstr(message, "LED") != NULL)
     {
@@ -57,15 +56,6 @@ uint8_t *build_tc_packet(const char *key, const char *message,
         parsed_ack = strtoul(ack_env, &end_ptr, 10);
         if(errno == 0 && end_ptr != ack_env && *end_ptr == '\0' && parsed_ack <= 0x0Fu)
             hdr.ackFlags = (unsigned int)parsed_ack;
-    }
-
-    counter_env = getenv("TC_MESSAGE_COUNTER");
-    if(counter_env != NULL && counter_env[0] != '\0')
-    {
-        errno = 0;
-        parsed_counter = strtoul(counter_env, &end_ptr, 10);
-        if(errno == 0 && end_ptr != counter_env && *end_ptr == '\0')
-            hdr.messageCounter = (unsigned int)(parsed_counter & 0xFFFFu);
     }
 
     uint8_t raw_hdr[5] = {0};
