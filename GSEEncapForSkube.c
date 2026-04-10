@@ -1,11 +1,12 @@
 /*
- * GSE encapsulation — raw memory input, binary file output
+ * GSE encapsulation — raw memory input, binary stdout output
  *
  * Takes a payload defined as a hex byte array, encapsulates it
- * into GSE packets, and writes the resulting packets to a binary file.
+ * into GSE packets, and writes the resulting packets to stdout.
  *
- * The output file contains back-to-back raw GSE packets.
+ * The output contains back-to-back raw GSE packets.
  * Each packet is self-delimiting via the GSE length field in its header.
+ * Diagnostic output goes to stderr.
  */
 
 #include <stdio.h>
@@ -48,14 +49,11 @@
 /** QoS queue index to use */
 #define QOS         0
 
-/** Output binary file path */
-#define OUTPUT_FILE "gse_output.bin"
-
 /** Debug printing: set to 1 to enable, 0 to disable */
-#define VERBOSE     1
+#define VERBOSE     0
 
 #define DEBUG(verbose, format, ...) \
-  do { if(verbose) printf(format, ##__VA_ARGS__); } while(0)
+  do { if(verbose) fprintf(stderr, format, ##__VA_ARGS__); } while(0)
 
 
 
@@ -69,7 +67,6 @@ int main(int argc, char *argv[])
     gse_vfrag_t  *vfrag_pkt = NULL;
     gse_status_t  status;
     uint8_t       label[6];
-    FILE         *out_file  = NULL;
     int           is_failure = 1;
     int           i;
     int           pkt_count = 0;
@@ -107,16 +104,6 @@ int main(int argc, char *argv[])
     DEBUG(VERBOSE, "Payload size: %zu bytes\n", in_size);
 
     /* ------------------------------------------------------------------
-     * Open output file
-     * ------------------------------------------------------------------ */
-    out_file = fopen(OUTPUT_FILE, "wb");
-    if(out_file == NULL)
-    {
-        fprintf(stderr, "Failed to open output file: %s\n", OUTPUT_FILE);
-        goto error;
-    }
-
-    /* ------------------------------------------------------------------
      * Initialise the GSE encapsulator
      * ------------------------------------------------------------------ */
     status = gse_encap_init(QOS_NBR, FIFO_SIZE, &encap);
@@ -124,7 +111,7 @@ int main(int argc, char *argv[])
     {
         fprintf(stderr, "Failed to initialise GSE library: %s\n",
                 gse_get_status(status));
-        goto close_file;
+        goto error;
     }
 
     /* ------------------------------------------------------------------
@@ -183,14 +170,15 @@ int main(int argc, char *argv[])
 
         if(status != GSE_STATUS_FIFO_EMPTY)
         {
-            /* Write raw GSE packet bytes to the output file */
+            /* Write raw GSE packet bytes to stdout */
             size_t written = fwrite(vfrag_pkt->start, 1,
-                                    vfrag_pkt->length, out_file);
+                                    vfrag_pkt->length, stdout);
             if(written != vfrag_pkt->length)
             {
-                fprintf(stderr, "File write error\n");
+                fprintf(stderr, "Write error\n");
                 goto release_lib;
             }
+            fflush(stdout);
 
             pkt_count++;
             DEBUG(VERBOSE, "Packet %d written: %zu bytes\n",
@@ -214,8 +202,8 @@ int main(int argc, char *argv[])
     }
     while(status != GSE_STATUS_FIFO_EMPTY);
 
-    DEBUG(VERBOSE, "Done. %d GSE packet(s) written to %s\n",
-          pkt_count, OUTPUT_FILE);
+    DEBUG(VERBOSE, "Done. %d GSE packet(s) written to stdout\n",
+          pkt_count);
 
     is_failure = 0;
 
@@ -230,8 +218,6 @@ release_lib:
                 gse_get_status(status));
         is_failure = 1;
     }
-close_file:
-    fclose(out_file);
 error:
     free(in_packet);
     return is_failure;

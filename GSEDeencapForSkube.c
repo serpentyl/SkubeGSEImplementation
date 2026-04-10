@@ -1,10 +1,11 @@
 /*
- * GSE de-encapsulation — binary file input, raw payload output
+ * GSE de-encapsulation — stdin input, decoded message to stdout
  *
- * Reads back-to-back raw GSE packets from a binary file,
- * de-encapsulates them, and writes the recovered payload to an output file.
+ * Reads back-to-back raw GSE packets from stdin,
+ * de-encapsulates them, verifies the HMAC, and prints the recovered
+ * message to stdout.  Diagnostic output goes to stderr.
  *
- * The input file is expected to be in the format produced by GSEEncapForSkube.c:
+ * The input is expected to be in the format produced by GSEEncapForSkube:
  * back-to-back raw GSE packets, each self-delimiting via the GSE length field.
  */
 
@@ -34,25 +35,19 @@
 /** Label type used during encapsulation */
 #define LABEL_TYPE  0
 
-/** Input binary file (produced by GSEEncapForSkube) */
-#define INPUT_FILE  "gse_output.bin"
-
-/** Output file for the recovered payload bytes */
-#define OUTPUT_FILE "payload_recovered.bin"
-
 /** Debug printing: set to 1 to enable, 0 to disable */
-#define VERBOSE     1
+#define VERBOSE     0
 
 /** HMAC key — must match the key used during encapsulation */
 #define DEFAULT_TC_HMAC_KEY "SkubeTradeshowDemoKey"
 
 #define DEBUG(verbose, format, ...) \
-  do { if(verbose) printf(format, ##__VA_ARGS__); } while(0)
+  do { if(verbose) fprintf(stderr, format, ##__VA_ARGS__); } while(0)
 
 /* -------------------------------------------------------------------------
  * Main
  * ------------------------------------------------------------------------- */
-int main(void)
+int main(int argc, char *argv[])
 {
     gse_deencap_t *deencap    = NULL;
     gse_vfrag_t   *gse_packet = NULL;
@@ -62,8 +57,6 @@ int main(void)
     uint8_t        label_type;
     uint16_t       protocol;
     uint16_t       gse_length;
-    FILE          *in_file    = NULL;
-    FILE          *out_file   = NULL;
     int            is_failure = 1;
     int            pkt_count  = 0;
     int            pdu_count  = 0;
@@ -75,29 +68,27 @@ int main(void)
     uint8_t       *tc_hmac     = NULL;
     int            print_release_msg = 0;
     int            print_close_msg = 0;
+    const char    *tc_hmac_key;
 
-    if(set_active_hmac_key((const uint8_t *)DEFAULT_TC_HMAC_KEY,
-                           strlen(DEFAULT_TC_HMAC_KEY)) != 0)
+    if(argc == 2)
+    {
+        tc_hmac_key = argv[1];
+    }
+    else if(argc == 1)
+    {
+        tc_hmac_key = DEFAULT_TC_HMAC_KEY;
+    }
+    else
+    {
+        fprintf(stderr, "Usage: %s [<hmac_key>]\n", argv[0]);
+        return 1;
+    }
+
+    if(set_active_hmac_key((const uint8_t *)tc_hmac_key,
+                           strlen(tc_hmac_key)) != 0)
     {
         fprintf(stderr, "Failed to initialise active HMAC key\n");
         goto error;
-    }
-
-    /* ------------------------------------------------------------------
-     * Open input and output files
-     * ------------------------------------------------------------------ */
-    in_file = fopen(INPUT_FILE, "rb");
-    if(in_file == NULL)
-    {
-        fprintf(stderr, "Failed to open input file: %s\n", INPUT_FILE);
-        goto error;
-    }
-
-    out_file = fopen(OUTPUT_FILE, "wb");
-    if(out_file == NULL)
-    {
-        fprintf(stderr, "Failed to open output file: %s\n", OUTPUT_FILE);
-        goto close_input;
     }
 
     /* ------------------------------------------------------------------
@@ -108,7 +99,7 @@ int main(void)
     {
         fprintf(stderr, "Failed to initialise GSE library: %s\n",
                 gse_get_status(status));
-        goto close_output;
+        goto error;
     }
 
     /* ------------------------------------------------------------------
@@ -122,7 +113,7 @@ int main(void)
      *
      * Total packet size = 2 + GSE_LENGTH
      * ------------------------------------------------------------------ */
-    while(fread(hdr, 1, 2, in_file) == 2)
+    while(fread(hdr, 1, 2, stdin) == 2)
     {
         /* Extract GSE_LENGTH from the lower 12 bits of the 2-byte header */
         remainder_len = ((uint16_t)(hdr[0] & 0x0F) << 8) | hdr[1];
@@ -140,7 +131,7 @@ int main(void)
         raw_pkt[1] = hdr[1];
 
         if(remainder_len > 0 &&
-           fread(raw_pkt + 2, 1, remainder_len, in_file) != remainder_len)
+           fread(raw_pkt + 2, 1, remainder_len, stdin) != remainder_len)
         {
             fprintf(stderr, "Truncated GSE packet in input file\n");
             free(raw_pkt);
@@ -298,17 +289,17 @@ int main(void)
                 DEBUG(VERBOSE, "Recovered TC payload too short for header\n");
             }
 
+            if(msg_len > 0)
+            {
+                fwrite(tc_payload + 5, 1, msg_len, stdout);
+                fflush(stdout);
+            }
+
             free(tc_payload);
             free(tc_hmac);
             tc_payload = NULL;
             tc_hmac = NULL;
             tc_payload_len = 0;
-
-            if(fwrite(pdu->start, 1, pdu->length, out_file) != pdu->length)
-            {
-                fprintf(stderr, "File write error\n");
-                goto free_pdu;
-            }
 
             status = gse_free_vfrag(&pdu);
             if(status != GSE_STATUS_OK)
@@ -320,8 +311,8 @@ int main(void)
         }
     }
 
-    DEBUG(VERBOSE, "Done. %d GSE packet(s) read, %d PDU(s) recovered. "
-          "Output written to %s\n", pkt_count, pdu_count, OUTPUT_FILE);
+    DEBUG(VERBOSE, "Done. %d GSE packet(s) read, %d PDU(s) recovered.\n",
+          pkt_count, pdu_count);
 
     is_failure = 0;
 
@@ -352,14 +343,10 @@ release_lib:
     {
         DEBUG(VERBOSE, "Task In Progress: De-encapsulation library released\n");
     }
-close_output:
-    fclose(out_file);
     if(print_close_msg)
     {
-        DEBUG(VERBOSE, "Task Complete: Write file closed\n");
+        DEBUG(VERBOSE, "Task Complete: De-encapsulation finished\n");
     }
-close_input:
-    fclose(in_file);
 error:
     return is_failure;
 }
